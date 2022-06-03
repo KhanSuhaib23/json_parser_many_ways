@@ -27,6 +27,8 @@ typedef enum {
     Json_Token_Ident,
     Json_Token_Integer,
     Json_Token_Number,
+    Json_Token_Boolean,
+    Json_Token_Null,
     Json_Token_LBrace,
     Json_Token_RBrace,
     Json_Token_RBracket,
@@ -36,6 +38,16 @@ typedef enum {
 } Json_Token_Enum;
 
 typedef uint32_t Json_Token_Tag;
+
+typedef enum {
+    Json_Keyword_None = 0,
+    Json_Keyword_Start = 1,
+    Json_Keyword_Null = 1,
+    Json_Keyword_True,
+    Json_Keyword_False,
+    Json_Keyword_PastEnd
+} Json_Keyword;
+
 
 typedef struct {
     Json_Token_Tag tag;
@@ -53,6 +65,7 @@ typedef struct {
     size_t ln, col;
 } Json_Lexer;
 
+void json_lex_init();
 Json_Token json_lex(Json_Lexer* lexer);
 
 #endif // LEXER_H_

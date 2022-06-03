@@ -15,18 +15,22 @@ int main(int argc, char** argv) {
 "	'students': [{\n"
 "			'id': 101,\n"
 "			'name': 'ABC',\n"
-"			'perc': 94.32\n"
+"			'perc': 94.32,\n"
+"           is_cat: false,\n"
+"           cat: null\n"
 "		},\n"
 "		{\n"
 "			'id': 102,\n"
 "			'name': 'CSE',\n"
-"			'perc': 92.99\n"
+"			'perc': 92.99,\n"
+"           is_cat: true,\n"
+"           cat: { kitty_name: 'Cat', is_cute: true}\n"
 "		}],\n"
 "'teacher': [{\n"
 "			'id': 201,\n"
 "			'name': '\xe0\xa4\xb9',\n"
 /* "			'name': 'CSE',\n" */
-"			'salaray': 9432\n"
+"			'salary': 9432\n"
 "		},\n"
 "		{\n"
 "			'id': 202,\n"
@@ -46,6 +50,7 @@ int main(int argc, char** argv) {
 
 "}\n";
 
+    json_lex_init();
     printf("%s\n\n\n---------------------------\n\n\n", str);
     Json_Node node = json_parse(str);
     json_print(&node);

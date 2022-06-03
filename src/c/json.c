@@ -77,6 +77,12 @@ void json_print_indented(const Json_Node* node, uint16_t indentation) {
         case Json_Node_String: {
             printf("'%.*s'", (int) node->string.sz, node->string.buff);
         } break;
+        case Json_Node_Boolean: {
+            printf("%s", node->boolean ? "true" : "false");
+        } break;
+        case Json_Node_Null: {
+            printf("null");
+        } break;
         default: {
             printf("<UNKNOWN>");
         }

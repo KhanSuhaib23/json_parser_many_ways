@@ -75,6 +75,13 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
             node.tag = Json_Node_String;
             node.string = token.string;
         } break;
+        case Json_Token_Boolean: {
+            node.tag = Json_Node_Boolean;
+            node.boolean = token.boolean;
+        } break;
+        case Json_Token_Null: {
+            node.tag = Json_Node_Null;
+        } break;
         default: {
             fprintf(stderr, "[ERROR]: Unknown token encountered %u at line %zd and col %zd\n'", token.tag, lexer->ln, lexer->col);
             for (char* st = lexer->start; st != lexer->pos; ++st) {

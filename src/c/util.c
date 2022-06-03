@@ -1,5 +1,6 @@
 #include "util.h"
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,6 +10,17 @@ String string_new(const char* str, size_t sz) {
         .sz = sz,
         .buff = str
     };
+}
+
+bool string_equal(String s1, String s2) {
+    if (s1.sz != s2.sz) return false;
+
+    for (size_t i = 0; i < s1.sz; ++i) {
+        if (s1.buff[i] != s2.buff[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 #define push_bits(l, r, n) (l) <<= (n), (l) |= ((r) & ((1 >> (n + 1)) - 1))

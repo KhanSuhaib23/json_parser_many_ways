@@ -1,8 +1,17 @@
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include "util.h"
 #include "lexer.h"
+
+String keywords[Json_Keyword_PastEnd];
+
+void json_lex_init() {
+    keywords[Json_Keyword_Null] = (String) { .buff = "null", .sz = 4};
+    keywords[Json_Keyword_False] = (String) { .buff = "false", .sz = 5};
+    keywords[Json_Keyword_True] = (String) { .buff = "true", .sz = 4};
+}
 
 Character_Class get_character_class(uint32_t rune) {
     switch (rune) {
@@ -84,8 +93,18 @@ void consume_rune(Json_Lexer* lexer, Rune rune) {
     lexer->pos += rune.sz;
 }
 
+Json_Keyword get_keyword(String ident) {
+    for (size_t i = Json_Keyword_Start; i < Json_Keyword_PastEnd; ++i) {
+        if (string_equal(ident, keywords[i])) {
+            return i;
+        }
+    }
+    return Json_Keyword_None;
+}
+
+#define next_rune() (consume_rune(lexer, rune), get_rune(lexer->pos))
+
 Json_Token json_lex(Json_Lexer* lexer) {
-   #define next_rune() (consume_rune(lexer, rune), get_rune(lexer->pos))
    Json_Token token;
    int64_t sg = 1, iv;
    size_t sz;
@@ -102,7 +121,7 @@ Json_Token json_lex(Json_Lexer* lexer) {
        case Character_Class_Underscore: {
            token.tag = Json_Token_Ident;
            token.string.buff = lexer->pos;
-           sz = 0;
+           sz = rune.sz;
            rune = next_rune();
 
            while (get_character_class(rune.code) == Character_Class_Character || get_character_class(rune.code) == Character_Class_Underscore) {
@@ -111,6 +130,25 @@ Json_Token json_lex(Json_Lexer* lexer) {
            }
 
            token.string.sz = sz;
+
+           switch (get_keyword(token.string)) {
+               case Json_Keyword_Null: {
+                   token.tag = Json_Token_Null;
+               } break;
+               case Json_Keyword_False: {
+                   token.tag = Json_Token_Boolean;
+                   token.boolean = false;
+               } break;
+               case Json_Keyword_True: {
+                   token.tag = Json_Token_Boolean;
+                   token.boolean = true;
+               } break;
+               default: {
+
+               } break;
+           }
+
+
        } break;
         case Character_Class_Single_Quote: {
             token.tag = Json_Token_String;
