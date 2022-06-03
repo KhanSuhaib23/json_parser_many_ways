@@ -227,6 +227,19 @@ Json_Token json_lex(Json_Lexer* lexer) {
    }
 
    switch (get_character_class(pos[0])) {
+       case Character_Class_Character:
+       case Character_Class_Underscore: {
+           token.tag = Json_Token_Ident;
+           token.string.buff = pos;
+           sz = 0;
+
+           while (get_character_class(pos[0]) == Character_Class_Character || get_character_class(pos[0]) == Character_Class_Underscore) {
+               ++pos;
+               ++sz;
+           }
+
+           token.string.sz = sz;
+       } break;
         case Character_Class_Single_Quote: {
             ++pos;
             token.tag = Json_Token_String;
@@ -341,8 +354,8 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
 
             while (1) {
                 token = json_lex(lexer);
-                if (token.tag != Json_Token_String) {
-                    fprintf(stderr, "[ERROR]: Parser state error. Expected a key string\n");
+                if (token.tag != Json_Token_String && token.tag != Json_Token_Ident) {
+                    fprintf(stderr, "[ERROR]: Parser state error. Expected a key string or identifier\n");
                     exit(-1);
                 }
                 String key = token.string;
@@ -495,13 +508,24 @@ int main(int argc, char** argv) {
 "'teacher': [{\n"
 "			'id': 201,\n"
 "			'name': 'JAT',\n"
-"			'perc': 94.32\n"
+"			'salaray': 9432\n"
+"		},\n"
+"		{\n"
+"			'id': 202,\n"
+"			'name': 'XYZ',\n"
+"			'perc': 9299\n"
+"		}],\n"
+"'staff': [{\n"
+"			id: 301,\n"
+"			name: 'NII',\n"
+"			perc: 94.32\n"
 "		},\n"
 "		{\n"
 "			'id': 202,\n"
 "			'name': 'XYZ',\n"
 "			'perc': 92.99\n"
 "		}]\n"
+
 "}\n";
 
     printf("%s\n\n\n---------------------------\n\n\n", str);
