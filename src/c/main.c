@@ -17,10 +17,9 @@ String string_new(const char* str, size_t sz) {
         .buff = str
     };
 }
-
-
 typedef enum {
-    Character_Class_None,
+    Character_Class_Unknown,
+    Character_Class_Whitespace,
     Character_Class_Single_Quote,
     Character_Class_Double_Quote,
     Character_Class_Comma,
@@ -33,7 +32,8 @@ typedef enum {
     Character_Class_LBracket,
     Character_Class_RBracket,
     Character_Class_Hyphen,
-    Character_Class_Colon
+    Character_Class_Colon,
+    Character_Class_End
 } Character_Class;
 
 typedef enum {
@@ -66,6 +66,55 @@ typedef struct {
     char* pos;
     size_t ln, col;
 } Json_Lexer;
+
+typedef struct {
+    uint32_t code;
+    uint32_t sz;
+} Rune;
+
+#define push_bits(l, r, n) (l) <<= (n), (l) |= ((r) & ((1 >> (n + 1)) - 1))
+
+Rune get_rune(const char* pos) {
+    uint32_t rune = 0;
+    uint32_t successive_bytes = 0, i;
+    uint8_t ch = pos[0];
+
+    if (ch & 0x80) {
+        if (((ch ^ 0xf0) >> 3) == 0) {
+            push_bits(rune, ch, 3);
+            successive_bytes = 3;
+        } else if (((ch ^ 0xe0) >> 4) == 0) {
+            push_bits(rune, ch, 4);
+            successive_bytes = 2;
+        } else if (((ch ^ 0xa0) >> 5) == 0) {
+            push_bits(rune, ch, 5);
+            successive_bytes = 1;
+        } else {
+            fprintf(stderr, "[ERROR]: Parsing UTF-8 posing, expected a header byte got something else\n");
+            exit(-1);
+        }
+
+    } else {
+        push_bits(rune, ch, 7);
+    }
+
+    ++pos;
+    ch = pos[0];
+
+    for (i = 0; i < successive_bytes; ++i) {
+        if (((ch ^ 0x80) >> 6) != 0) {
+            fprintf(stderr, "[ERROR]: Parsing UTF-8 posing, expected successive byte got something else");
+            exit(-1);
+        }
+        push_bits(rune, ch, 6);
+        ++pos;
+        ch = pos[0];
+    }
+
+    return (Rune) { .code = rune, .sz = successive_bytes + 1 };
+}
+
+
 
 typedef enum {
     Json_Node_Integer,
@@ -150,8 +199,11 @@ void json_array_put(Json_Array* object, Json_Node node) {
     object->sz++;
 }
 
-Character_Class get_character_class(char ch) {
-    switch (ch) {
+Character_Class get_character_class(uint32_t rune) {
+    switch (rune) {
+        case 0: {
+            return Character_Class_End;
+        } break;
         case 'a': case 'b': case 'c': case 'd': case 'e':
         case 'f': case 'g': case 'h': case 'i': case 'j':
         case 'k': case 'l': case 'm': case 'n': case 'o':
@@ -168,6 +220,9 @@ Character_Class get_character_class(char ch) {
         } break;
         case '_': {
             return Character_Class_Underscore;
+        } break;
+        case ' ': case '\n': case '\r': case '\t': {
+            return Character_Class_Whitespace;
         } break;
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9': {
@@ -204,119 +259,126 @@ Character_Class get_character_class(char ch) {
             return Character_Class_Colon;
         } break;
         default: {
-            return Character_Class_None;
+            if (rune >= 0 && rune <= 127) {
+                return Character_Class_Unknown;
+            } else {
+                return Character_Class_Character; // TODO(suhaibnk): there may be invalid utf8 chars in this get rid of them
+            }
         } break;
     }
 }
 
-Json_Token json_lex(Json_Lexer* lexer) {
-   char* pos = lexer->pos;
-   Json_Token token;
-   size_t sz = 0;
-   int64_t sg = 1, iv;
-   double fv, ml;
+void consume_rune(Json_Lexer* lexer, Rune rune) {
+    if (rune.code == '\n') {
+        lexer->ln++;
+        lexer->col = 1;
+    } else {
+        lexer->col++;
+    }
 
-   while (pos[0] && (pos[0] == ' ' || pos[0] == '\n' || pos[0] == '\t')) {
-       if (pos[0] == '\n') {
-           lexer->ln++;
-           lexer->col = 1;
-       } else {
-           lexer->col++;
-       }
-       ++pos;
+    lexer->pos += rune.sz;
+}
+
+Json_Token json_lex(Json_Lexer* lexer) {
+   #define next_rune() (consume_rune(lexer, rune), get_rune(lexer->pos))
+   Json_Token token;
+   int64_t sg = 1, iv;
+   size_t sz;
+   double fv, ml;
+   Rune rune;
+   rune = get_rune(lexer->pos);
+
+   while (get_character_class(rune.code) == Character_Class_Whitespace) {
+       rune = next_rune();
    }
 
-   switch (get_character_class(pos[0])) {
+   switch (get_character_class(rune.code)) {
        case Character_Class_Character:
        case Character_Class_Underscore: {
            token.tag = Json_Token_Ident;
-           token.string.buff = pos;
+           token.string.buff = lexer->pos;
            sz = 0;
+           rune = next_rune();
 
-           while (get_character_class(pos[0]) == Character_Class_Character || get_character_class(pos[0]) == Character_Class_Underscore) {
-               ++pos;
-               ++sz;
+           while (get_character_class(rune.code) == Character_Class_Character || get_character_class(rune.code) == Character_Class_Underscore) {
+               sz += rune.sz;
+               rune = next_rune();
            }
 
            token.string.sz = sz;
        } break;
         case Character_Class_Single_Quote: {
-            ++pos;
             token.tag = Json_Token_String;
-            token.string.buff = pos;
-            while (pos[0] != '\'') {
-                if (pos[0] == 0) {
+            rune = next_rune();
+            token.string.buff = lexer->pos;
+            sz = 0;
+
+            while (get_character_class(rune.code) != Character_Class_Single_Quote) {
+                sz += rune.sz;
+                if (get_character_class(rune.code) == Character_Class_End) {
                     fprintf(stderr, "[ERROR]: Lexer state error didn't find closing ' before END\n");
                     exit(-1);
-                } else if (pos[0] == '\\') {
-                    if (pos[0] == 0) {
+                } else if (rune.code == '\\') {
+                    rune = next_rune();
+                    sz += rune.sz;
+                    if (rune.code == 0) {
                         fprintf(stderr, "[ERROR]: Lexer state error encountered \\ before END\n");
                         exit(-1);
                     }
-                    sz += 2;
-                    pos += 2;
-                    lexer->col += 2;
+                    rune = next_rune();
                 } else {
-                    ++sz;
-                    ++pos;
+                    rune = next_rune();
                 }
             }
+            next_rune(); // consume the ending single quote
             token.string.sz = sz;
-            ++pos;
         } break;
         case Character_Class_LBrace: {
             token.tag = Json_Token_LBrace;
-            ++pos;
-            lexer->col++;
+            next_rune();
         } break;
         case Character_Class_RBrace: {
             token.tag = Json_Token_RBrace;
-            ++pos;
-            lexer->col++;
+            next_rune();
         } break;
         case Character_Class_LBracket: {
             token.tag = Json_Token_LBracket;
-            ++pos;
-            lexer->col++;
+            next_rune();
         } break;
         case Character_Class_RBracket: {
             token.tag = Json_Token_RBracket;
-            ++pos;
-            lexer->col++;
+            next_rune();
         } break;
        case Character_Class_Hyphen:
-           ++pos;
            sg = -1;
+           rune = next_rune();
        case Character_Class_Digit: {
            token.tag = Json_Token_Integer;
 
            iv = 0;
 
-           if (get_character_class(pos[0]) != Character_Class_Digit) {
+           if (get_character_class(rune.code) != Character_Class_Digit) {
                fprintf(stderr, "[ERROR]: Lexer error, found - then didn't see a digit\n");
                exit(-1);
            }
 
-           while (get_character_class(pos[0]) == Character_Class_Digit) {
-               iv = 10 * iv + (pos[0] - '0');
-               ++pos;
-               lexer->col++;
+           while (get_character_class(rune.code) == Character_Class_Digit) {
+               iv = 10 * iv + (rune.code - '0');
+               rune = next_rune();
            }
-           if (get_character_class(pos[0]) == Character_Class_Dot) {
+           if (get_character_class(rune.code) == Character_Class_Dot) {
                token.tag = Json_Token_Number;
-               ++pos;
-               lexer->col++;
-               if (get_character_class(pos[0]) != Character_Class_Digit) {
+               rune = next_rune();
+               if (get_character_class(rune.code) != Character_Class_Digit) {
                    fprintf(stderr, "[ERROR]: Lexer error, found . then didn't see a digit\n");
                    exit(-1);
                }
                fv = (double) iv;
                ml = 0.1;
-               while (get_character_class(pos[0]) == Character_Class_Digit) {
-                   fv += ml * (pos[0] - '0');
+               while (get_character_class(rune.code) == Character_Class_Digit) {
+                   fv += ml * (rune.code - '0');
                    ml *= 0.1;
-                   ++pos;
-                   lexer->col++;
+                   rune = next_rune();
                }
 
                token.number = fv;
@@ -326,20 +388,17 @@ Json_Token json_lex(Json_Lexer* lexer) {
        } break;
        case Character_Class_Colon: {
            token.tag = Json_Token_Colon;
-           ++pos;
-           lexer->col++;
+           next_rune();
        } break;
        case Character_Class_Comma: {
            token.tag = Json_Token_Comma;
-           ++pos;
-           lexer->col++;
+           next_rune();
        } break;
         default: {
-            fprintf(stderr, "[ERROR]: Lexer state error, encountered unknown character %c\n", pos[0]);
+            fprintf(stderr, "[ERROR]: Lexer state error, encountered unknown character %c\n", rune.code);
+            next_rune();
         }
    }
-
-   lexer->pos = pos;
 
    return token;
 }
@@ -507,7 +566,8 @@ int main(int argc, char** argv) {
 "		}],\n"
 "'teacher': [{\n"
 "			'id': 201,\n"
-"			'name': 'JAT',\n"
+"			'name': '\xe0\xa4\xb9',\n"
+/* "			'name': 'CSE',\n" */
 "			'salaray': 9432\n"
 "		},\n"
 "		{\n"
