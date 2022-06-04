@@ -1,0 +1,6 @@
+#+title: Json
+#+description: Json parsing details
+
+* References
+** JSON Specification: https://www.json.org/json-en.html
+** UTF-8 Specification: https://en.wikipedia.org/wiki/UTF-8

@@ -21,7 +21,6 @@ void json_report_error(Json_Lexer* lexer, const char* error_pos) {
     size_t error_line_index = 0, i, l;
     size_t current_line = 1;
     const char* pos = lexer->start;
-    bool print_line = false;
 
     last_n_line[error_line_index] = pos;
     error_line_index = (error_line_index + 1) % 10;

@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     const char* str =
         "{\n"
 "	'students': [{\n"
-"			'id' 101,\n"
+"			'id': 101,\n"
 "			'name': 'ABC',\n"
 "			'perc': 94.32,\n"
 "           is_cat: false,\n"

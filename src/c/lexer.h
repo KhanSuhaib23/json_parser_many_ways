@@ -5,8 +5,8 @@
 #include "util.h"
 
 typedef enum {
-    Character_Class_Unknown,
-    Character_Class_Whitespace,
+    Character_Class_End = 0,
+    Character_Class_Whitespace = 0x1,
     Character_Class_Single_Quote,
     Character_Class_Double_Quote,
     Character_Class_Comma,
@@ -20,7 +20,7 @@ typedef enum {
     Character_Class_RBracket,
     Character_Class_Hyphen,
     Character_Class_Colon,
-    Character_Class_End
+    Character_Class_Unknown,
 } Character_Class;
 
 typedef enum {
