@@ -1,5 +1,6 @@
 #ifndef LEXER_H_
 #define LEXER_H_
+#include <stddef.h>
 #include <stdint.h>
 #include "util.h"
 
@@ -51,6 +52,7 @@ typedef enum {
 
 typedef struct {
     Json_Token_Tag tag;
+    size_t sz;
     union {
         String string;
         int64_t integer;
@@ -67,5 +69,6 @@ typedef struct {
 
 void json_lex_init();
 Json_Token json_lex(Json_Lexer* lexer);
+void json_report_error(Json_Lexer* lexer);
 
 #endif // LEXER_H_

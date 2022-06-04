@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 "			'id': 102,\n"
 "			'name': 'CSE',\n"
 "			'perc': 92.99,\n"
-"           is_cat: true,\n"
+"           is_cat: true\n"
 "           cat: { kitty_name: 'Cat', is_cute: true}\n"
 "		}],\n"
 "'teacher': [{\n"

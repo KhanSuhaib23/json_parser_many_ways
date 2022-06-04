@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "util.h"
 #include "lexer.h"
 
@@ -11,6 +12,52 @@ void json_lex_init() {
     keywords[Json_Keyword_Null] = (String) { .buff = "null", .sz = 4};
     keywords[Json_Keyword_False] = (String) { .buff = "false", .sz = 5};
     keywords[Json_Keyword_True] = (String) { .buff = "true", .sz = 4};
+}
+
+void json_report_error(Json_Lexer* lexer) {
+    size_t error_line = lexer->ln;
+    size_t current_line = 1;
+    const char* pos = lexer->start;
+    bool print_line = false;
+
+    fprintf(stderr, "Line: %zd, Column: %zd\n", lexer->ln, lexer->col);
+
+    for (; pos[0];) {
+        if (current_line <= error_line && error_line - current_line <= 10) {
+            print_line = true;
+        }
+        if (print_line) {
+            fprintf(stderr, "%4zd  |", current_line);
+        }
+
+        for (; pos[0] && pos[0] != '\n'; ++pos) {
+            if (print_line) {
+                fprintf(stderr, "%.*s", 1, pos);
+            }
+        }
+        if (print_line) {
+            fprintf(stderr, "\n");
+        }
+
+        if (pos[0] == '\n') {
+            ++pos;
+            current_line++;
+        }
+
+        print_line = false;
+    }
+    size_t width = 50;
+    fprintf(stderr, "       ");
+
+    for (size_t i = 0; i < lexer->col - 1; ++i, --width) {
+        fprintf(stderr, "-");
+    }
+    fprintf(stderr, "^");
+
+    for (; width; --width) {
+        fprintf(stderr, "-");
+    }
+
 }
 
 Character_Class get_character_class(uint32_t rune) {
@@ -159,12 +206,14 @@ Json_Token json_lex(Json_Lexer* lexer) {
             while (get_character_class(rune.code) != Character_Class_Single_Quote) {
                 sz += rune.sz;
                 if (get_character_class(rune.code) == Character_Class_End) {
+                    json_report_error(lexer);
                     fprintf(stderr, "[ERROR]: Lexer state error didn't find closing ' before END\n");
                     exit(-1);
                 } else if (rune.code == '\\') {
                     rune = next_rune();
                     sz += rune.sz;
                     if (rune.code == 0) {
+                        json_report_error(lexer);
                         fprintf(stderr, "[ERROR]: Lexer state error encountered \\ before END\n");
                         exit(-1);
                     }
@@ -201,6 +250,7 @@ Json_Token json_lex(Json_Lexer* lexer) {
            iv = 0;
 
            if (get_character_class(rune.code) != Character_Class_Digit) {
+               json_report_error(lexer);
                fprintf(stderr, "[ERROR]: Lexer error, found - then didn't see a digit\n");
                exit(-1);
            }
@@ -213,6 +263,7 @@ Json_Token json_lex(Json_Lexer* lexer) {
                token.tag = Json_Token_Number;
                rune = next_rune();
                if (get_character_class(rune.code) != Character_Class_Digit) {
+                   json_report_error(lexer);
                    fprintf(stderr, "[ERROR]: Lexer error, found . then didn't see a digit\n");
                    exit(-1);
                }
@@ -238,6 +289,7 @@ Json_Token json_lex(Json_Lexer* lexer) {
            next_rune();
        } break;
         default: {
+            json_report_error(lexer);
             fprintf(stderr, "[ERROR]: Lexer state error, encountered unknown character %c\n", rune.code);
             next_rune();
         }

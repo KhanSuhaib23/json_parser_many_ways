@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 Json_Node json_parse_node(Json_Lexer* lexer) {
     Json_Token token = json_lex(lexer);
@@ -12,6 +13,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
             while (1) {
                 token = json_lex(lexer);
                 if (token.tag != Json_Token_String && token.tag != Json_Token_Ident) {
+                   json_report_error(lexer);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a key string or identifier\n");
                     exit(-1);
                 }
@@ -19,6 +21,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
                 token = json_lex(lexer);
 
                 if (token.tag != Json_Token_Colon) {
+                   json_report_error(lexer);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a colon\n");
                     exit(-1);
                 }
@@ -33,6 +36,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
                 }
 
                 if (token.tag != Json_Token_Comma) {
+                   json_report_error(lexer);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a commua\n");
                     exit(-1);
                 }
@@ -54,6 +58,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
                 }
 
                 if (token.tag != Json_Token_Comma) {
+                   json_report_error(lexer);
                    fprintf(stderr, "[ERROR]: Parser state error. Expected a comma\n");
                    exit(-1);
                 }
@@ -83,11 +88,8 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
             node.tag = Json_Node_Null;
         } break;
         default: {
+            json_report_error(lexer);
             fprintf(stderr, "[ERROR]: Unknown token encountered %u at line %zd and col %zd\n'", token.tag, lexer->ln, lexer->col);
-            for (char* st = lexer->start; st != lexer->pos; ++st) {
-                fprintf(stderr, "%c", st[0]);
-            }
-            fprintf(stderr, "%c'\n", lexer->pos[0]);
 
             exit(-1);
         }
