@@ -52,7 +52,7 @@ typedef enum {
 
 typedef struct {
     Json_Token_Tag tag;
-    size_t sz;
+    const char* st;
     union {
         String string;
         int64_t integer;
@@ -64,11 +64,10 @@ typedef struct {
 typedef struct {
     char* start;
     char* pos;
-    size_t ln, col;
 } Json_Lexer;
 
 void json_lex_init();
 Json_Token json_lex(Json_Lexer* lexer);
-void json_report_error(Json_Lexer* lexer);
+void json_report_error(Json_Lexer* lexer, const char* error_pos);
 
 #endif // LEXER_H_

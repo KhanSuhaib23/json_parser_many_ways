@@ -13,7 +13,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
             while (1) {
                 token = json_lex(lexer);
                 if (token.tag != Json_Token_String && token.tag != Json_Token_Ident) {
-                   json_report_error(lexer);
+                   json_report_error(lexer, token.st);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a key string or identifier\n");
                     exit(-1);
                 }
@@ -21,7 +21,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
                 token = json_lex(lexer);
 
                 if (token.tag != Json_Token_Colon) {
-                   json_report_error(lexer);
+                   json_report_error(lexer, token.st);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a colon\n");
                     exit(-1);
                 }
@@ -36,7 +36,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
                 }
 
                 if (token.tag != Json_Token_Comma) {
-                   json_report_error(lexer);
+                   json_report_error(lexer, token.st);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a commua\n");
                     exit(-1);
                 }
@@ -58,7 +58,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
                 }
 
                 if (token.tag != Json_Token_Comma) {
-                   json_report_error(lexer);
+                   json_report_error(lexer, token.st);
                    fprintf(stderr, "[ERROR]: Parser state error. Expected a comma\n");
                    exit(-1);
                 }
@@ -88,8 +88,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
             node.tag = Json_Node_Null;
         } break;
         default: {
-            json_report_error(lexer);
-            fprintf(stderr, "[ERROR]: Unknown token encountered %u at line %zd and col %zd\n'", token.tag, lexer->ln, lexer->col);
+            json_report_error(lexer, token.st);
 
             exit(-1);
         }
@@ -101,8 +100,6 @@ Json_Node json_parse(const char* str) {
     Json_Lexer lexer = (Json_Lexer) {
         .start = (char*) str,
         .pos = (char*) str,
-        .ln = 1,
-        .col = 1
     };
 
     return json_parse_node(&lexer);
