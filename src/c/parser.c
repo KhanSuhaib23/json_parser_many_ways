@@ -1,6 +1,8 @@
 #include "parser.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "utf8.h"
 
 Json_Node json_parse_node(Json_Lexer* lexer) {
     Json_Token token = json_lex(lexer);
@@ -12,7 +14,7 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
 
             while (1) {
                 token = json_lex(lexer);
-                if (token.tag != Json_Token_String && token.tag != Json_Token_Ident) {
+                if (token.tag != Json_Token_String) {
                    json_report_error(lexer, token.st);
                     fprintf(stderr, "[ERROR]: Parser state error. Expected a key string or identifier\n");
                     exit(-1);
@@ -97,6 +99,9 @@ Json_Node json_parse_node(Json_Lexer* lexer) {
 }
 
 Json_Node json_parse(const char* str) {
+    uint32_t state = 0;
+    const char* end = (const char*) utf8_validate_dfa(&state, (void*) str);
+
     Json_Lexer lexer = (Json_Lexer) {
         .start = (char*) str,
         .pos = (char*) str,
